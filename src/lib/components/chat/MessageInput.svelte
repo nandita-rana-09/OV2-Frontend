@@ -838,9 +838,14 @@
 					if (uploadedFile.error) {
 						console.warn('File upload warning:', uploadedFile.error);
 						toast.warning(uploadedFile.error);
+						fileItem.error = uploadedFile.error;
 					}
 
-					fileItem.status = 'uploaded';
+					// Extraction can fail (e.g. a scanned/image-only PDF with no text
+					// layer) even though the upload itself succeeded. Keep that visible
+					// on the attached file chip, not just in the toast that already
+					// disappeared by the time the user asks about it (#PDF-read-issue).
+					fileItem.status = uploadedFile.error ? 'failed' : 'uploaded';
 					fileItem.file = uploadedFile;
 					fileItem.id = uploadedFile.id;
 					fileItem.collection_name =
