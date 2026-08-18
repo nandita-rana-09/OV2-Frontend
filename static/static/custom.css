@@ -215,13 +215,16 @@ html:not(.dark) .text-gray-600 {
    =========================================================================== */
 
 /* User message bubble -- the most-repeated element on screen. Tinted rather
-   than solid violet, so long messages stay comfortable to read. */
-.user-message .rounded-3xl {
+   than solid violet, so long messages stay comfortable to read.
+   Scoped to `div` so it doesn't also catch the Save/Cancel/Send buttons in
+   the edit view, which share the `rounded-3xl` shape but need their own
+   Tailwind background/text colors for contrast. */
+.user-message div.rounded-3xl {
 	background-color: rgba(108, 92, 231, 0.09) !important;
 	border: 1px solid rgba(108, 92, 231, 0.16);
 }
 
-.dark .user-message .rounded-3xl {
+.dark .user-message div.rounded-3xl {
 	background-color: rgba(108, 92, 231, 0.16) !important;
 	border-color: rgba(108, 92, 231, 0.22);
 }
