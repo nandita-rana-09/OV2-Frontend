@@ -709,21 +709,37 @@
 	};
 
 	const screenCaptureHandler = async () => {
+		let mediaStream = null;
 		try {
 			// Request screen media
-			const mediaStream = await navigator.mediaDevices.getDisplayMedia({
+			mediaStream = await navigator.mediaDevices.getDisplayMedia({
 				video: { cursor: 'never' },
 				audio: false
 			});
 			// Once the user selects a screen, temporarily create a video element
 			const video = document.createElement('video');
 			video.srcObject = mediaStream;
+
+			// videoWidth/videoHeight stay 0 until the browser has loaded the
+			// stream's metadata -- play() resolving does not guarantee that.
+			// Reading them too early sizes the canvas at 0x0, silently producing
+			// an empty "capture" that the normal upload path then rejects as an
+			// empty file.
+			await new Promise((resolve, reject) => {
+				video.onloadedmetadata = () => resolve();
+				video.onerror = () => reject(new Error('Failed to load the captured video stream'));
+			});
 			// Ensure the video loads without affecting user experience or tab switching
 			await video.play();
 			// Set up the canvas to match the video dimensions
 			const canvas = document.createElement('canvas');
 			canvas.width = video.videoWidth;
 			canvas.height = video.videoHeight;
+
+			if (canvas.width === 0 || canvas.height === 0) {
+				throw new Error('Captured stream has no video dimensions');
+			}
+
 			// Grab a single frame from the video stream using the canvas
 			const context = canvas.getContext('2d');
 			context.drawImage(video, 0, 0, canvas.width, canvas.height);
@@ -741,8 +757,22 @@
 			// Clean memory: Clear video srcObject
 			video.srcObject = null;
 		} catch (error) {
-			// Handle any errors (e.g., user cancels screen sharing)
+			// Stop any tracks granted before the failure so the browser's
+			// "sharing this tab/screen" indicator doesn't linger.
+			mediaStream?.getTracks().forEach((track) => track.stop());
+
 			console.error('Error capturing screen:', error);
+
+			if (error?.name === 'NotAllowedError') {
+				// Browsers report both an explicit permission denial and the
+				// user cancelling the picker as NotAllowedError -- there is no
+				// way to tell them apart, so one neutral message covers both.
+				toast.info($i18n.t('Screen capture was cancelled or permission was denied.'));
+			} else {
+				toast.error(
+					$i18n.t('Failed to capture the screen: {{error}}', { error: error?.message ?? error })
+				);
+			}
 		}
 	};
 
