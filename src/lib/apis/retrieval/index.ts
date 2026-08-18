@@ -361,7 +361,12 @@ export const processWeb = async (
 			return res.json();
 		})
 		.catch((err) => {
-			error = err.detail;
+			// err only has `.detail` when the backend returned a parsed JSON
+			// error body; a raw network/timeout failure is a plain Error with
+			// no `.detail`, which silently produced `error = undefined` here,
+			// so the caller's `if (error) throw` never fired and the caller
+			// was left waiting on a response that would never come.
+			error = err?.detail || err?.message || String(err);
 			console.error(err);
 			return null;
 		});
